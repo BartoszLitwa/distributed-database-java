@@ -1,92 +1,48 @@
-import tcp.TCPClient;
-import tcp.TCPServer;
-
-import java.util.*;
+import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
+import java.util.MissingFormatArgumentException;
 
 public class DatabaseNode {
-    private int tcpPort;
-    private SimpleEntry<Integer, Integer> record;
-    private List<SimpleEntry<String, Integer>> connections;
-
-    private Map<SimpleEntry<String, Integer>, SimpleEntry<Thread, TCPClient>> clientsThreads;
-    private SimpleEntry<Thread, TCPServer> serverThread;
-
-    public DatabaseNode(int tcpPort, SimpleEntry<Integer, Integer> record, List<SimpleEntry<String, Integer>> connections) {
-        this.tcpPort = tcpPort;
-        this.record = record;
-        this.connections = connections;
-
-        clientsThreads = new HashMap<>();
-    }
-
-    public void startNode() {
-        startNodeServer();
-        startNodeClients();
-    }
-
-    public void stopNode() {
-        stopNodeServer();
-    }
-
-    private void startNodeServer() {
-        var server = new TCPServer(tcpPort);
-        var thread = new Thread(() -> {
-            server.startServer();
-        });
-        serverThread = new SimpleEntry<>(thread, server);
-        thread.start();
-    }
-
-    private void stopNodeServer(){
-        // Stop the server
-        serverThread.getValue().stopServer();
-        // Stop the server's thread
-        serverThread.getKey().interrupt();
-    }
-
-    private void startNodeClients() {
-        for (var connection : connections) {
-            var client = new TCPClient(connection);
-            var thread = new Thread(() -> {
-                client.startClient();
-            });
-            // Add it to our threads map
-            clientsThreads.put(connection, new SimpleEntry<>(thread, client));
-            thread.start();
+    public static void main(String[] args) {
+        NodeData databaseNode = null;
+        try {
+            databaseNode = setupNode(args);
+            databaseNode.startNode();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally { // Dispose node and threads
+            if (databaseNode != null) {
+                databaseNode.stopNode();
+            }
         }
     }
 
-    private void stopNodeClients(){
-        for (var connection : connections) {
-            // Stop the client
-            clientsThreads.get(connection).getValue().stopClient();
-            // Stop the client's thread
-            clientsThreads.get(connection).getKey().interrupt();
+    private static NodeData setupNode(String[] args) {
+        var tcpPort = -1;
+        SimpleEntry<Integer, Integer> record = null;
+        var connections = new ArrayList<SimpleEntry<String, Integer>>();
+
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("-tcpport")) {
+                tcpPort = Integer.parseInt(args[i + 1]);
+            } else if (args[i].equals("-record")) {
+                String[] split = args[i + 1].split(":");
+                record = new SimpleEntry<>(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
+            } else if (args[i].equals("-connect")) {
+                String[] split = args[i + 1].split(":");
+                connections.add(new SimpleEntry<>(split[0], Integer.parseInt(split[1])));
+            }
         }
-    }
 
-    public int getTcpPort() {
-        return tcpPort;
-    }
+        if(tcpPort == -1){
+            throw new MissingFormatArgumentException("TCP port not set");
+        } else if(record == null){
+            throw new MissingFormatArgumentException("Record not set");
+        } else if(connections.size() == 0){
+            throw new MissingFormatArgumentException("Connections not set");
+        }
 
-    public SimpleEntry<Integer, Integer> getRecord() {
-        return record;
-    }
-
-    public List<SimpleEntry<String, Integer>> getConnections() {
-        return connections;
-    }
-
-    public void setTcpPort(int tcpPort) {
-        this.tcpPort = tcpPort;
-    }
-
-    public void setRecord(SimpleEntry<Integer, Integer> record) {
-        this.record = record;
-    }
-
-    public void setConnections(List<SimpleEntry<String, Integer>> connections) {
-        this.connections = connections;
+        return new NodeData(tcpPort, record, connections);
     }
 }
