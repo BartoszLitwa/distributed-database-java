@@ -6,9 +6,13 @@ import java.util.MissingFormatArgumentException;
 public class DatabaseNode {
     public static void main(String[] args) {
         NodeData databaseNode = null;
+        if(args.length == 0){
+            args = new String[] {"-tcpport", "9000", "-record", "1:1"};
+        }
         try {
             databaseNode = setupNode(args);
             databaseNode.startNode();
+            System.in.read();
         } catch (Exception e) {
             e.printStackTrace();
         } finally { // Dispose node and threads
@@ -39,8 +43,6 @@ public class DatabaseNode {
             throw new MissingFormatArgumentException("TCP port not set");
         } else if(record == null){
             throw new MissingFormatArgumentException("Record not set");
-        } else if(connections.size() == 0){
-            throw new MissingFormatArgumentException("Connections not set");
         }
 
         return new NodeData(tcpPort, record, connections);

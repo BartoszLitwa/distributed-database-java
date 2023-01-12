@@ -23,6 +23,8 @@ public class TCPServer {
     public boolean sendMessage(String message) {
         try {
             out.println(message);
+            out.println("\n");
+            out.flush();
             return true;
         } catch (Exception e) {
             System.err.println("Couldn't get I/O for the connection to " + port);

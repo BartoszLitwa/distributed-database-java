@@ -12,8 +12,6 @@
  *
  * The client assumes, that the parameters are correct and there are enough
  * of them. Their correctness is not checked.
- *
- * SKJ, 2022/23, Łukasz Maśko
  */
 import java.net.*;
 import java.io.*;

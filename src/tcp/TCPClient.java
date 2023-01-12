@@ -25,13 +25,10 @@ public class TCPClient {
     public boolean sendMessage(String message) {
         try {
             out.println(message);
-            String clientInput = input.readLine();
-            System.out.println(clientInput);
+            out.println("\n");
+            out.flush();
             return true;
-        } catch (UnknownHostException e) {
-            System.err.println("Don't know about host " + connection.getKey());
-            return false;
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Couldn't get I/O for the connection to " + connection.getKey());
             return false;
         }
