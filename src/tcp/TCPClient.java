@@ -80,4 +80,12 @@ public class TCPClient {
     public boolean isAlive() {
         return alive;
     }
+
+    public String getHostAddress(){
+        return socket.getInetAddress().getHostAddress();
+    }
+
+    public int getPort(){
+        return socket.getPort();
+    }
 }
