@@ -46,7 +46,7 @@ public class TCPClient {
     public void startClient(){
         try {
             InetAddress serverAddress = InetAddress.getByName(connection.getKey());
-            System.out.println("server ip address: " + serverAddress.getHostAddress());
+            System.out.println("Starting Client - server ip address: " + connection.getKey() + ":" + connection.getValue());
 
             socket = new Socket(serverAddress, connection.getValue());
             out = new PrintWriter(socket.getOutputStream(), true);
