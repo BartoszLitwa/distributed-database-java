@@ -6,9 +6,7 @@ import java.util.MissingFormatArgumentException;
 public class DatabaseNode {
     public static void main(String[] args) {
         NodeData databaseNode = null;
-        if(args.length == 0){
-            args = new String[] {"-tcpport", "9000", "-record", "1:1"};
-        }
+
         try {
             databaseNode = setupNode(args);
             databaseNode.startNode();
