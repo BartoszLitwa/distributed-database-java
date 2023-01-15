@@ -4,6 +4,7 @@ import tcp.TCPServer;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Array;
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
 
@@ -71,6 +72,7 @@ public class NodeData {
         if(record.getValue() == newRecord.getValue()){
             writer.println("OK");
             writer.flush();
+            return;
         } else {
             var responses = sendRequestMessage("set-value " + parameter);
             for (var res : responses) {
@@ -81,15 +83,18 @@ public class NodeData {
                 }
             }
         }
+        writer.println("ERROR");
+        writer.flush();
     }
 
     private void getValueNode(BufferedReader reader, PrintWriter writer, String parameter){
-        var result = record.getValue() == Integer.parseInt(parameter) ? tcpServer.getHostAddress() + ":" + tcpServer.getPort() : "ERROR";
+        var result = record.getKey() == Integer.parseInt(parameter) ? record.getKey() + ":" + record.getValue() : "ERROR";
         if(result.equals("ERROR")){
             var responses = sendRequestMessage("get-value " + parameter);
             for (var response : responses) {
                 if(!response.equals("ERROR")){
                     result = response;
+                    break;
                 }
             }
         }
@@ -100,12 +105,15 @@ public class NodeData {
     }
 
     private void findKeyNode(BufferedReader reader, PrintWriter writer, String parameter){
-        var responses = sendRequestMessage("find-key " + parameter);
         var result = record.getKey() == Integer.parseInt(parameter) ? tcpServer.getHostAddress() + ":" + tcpServer.getPort() : "ERROR";
-        for (var response : responses) {
-            System.out.println(response);
-            if(!response.equals("ERROR")){
-                result = response;
+        if(result.equals("ERROR")){
+            var responses = sendRequestMessage("find-key " + parameter);
+            for (var response : responses) {
+                System.out.println(response);
+                if(!response.equals("ERROR")){
+                    result = response;
+                    break;
+                }
             }
         }
         System.out.println("Find Key - " + parameter + ": " + result);
@@ -166,7 +174,7 @@ public class NodeData {
                 }
             }
         } else { // We have been informed that another node is going to terminate
-            System.out.println("Recerived terminate message from " + parameter);
+            System.out.println("Received terminate message from " + parameter);
             var split = parameter.split(":");
             var address = split[0];
             var port = Integer.parseInt(split[1]);
@@ -189,10 +197,8 @@ public class NodeData {
         tcpServer = new TCPServer(tcpPort);
         tcpServer.startServer();
         System.out.println("Server started: " + tcpServer.getHostAddress() + ":" + tcpServer.getPort());
-        // Start new node server waiting for another client
-        // startNodeServer(false);
 
-        // Until it is alive keep reading
+        // Until it is alive keep listening for new connections
         tcpServer.listen((reader, writer) -> {
             try {
                 String message = reader.readLine();
