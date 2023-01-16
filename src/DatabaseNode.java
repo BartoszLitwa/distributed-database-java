@@ -1,4 +1,3 @@
-import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.MissingFormatArgumentException;
@@ -23,17 +22,17 @@ public class DatabaseNode {
     private static NodeData setupNode(String[] args) {
         var tcpPort = -1;
         SimpleEntry<Integer, Integer> record = null;
-        var connections = new ArrayList<SimpleEntry<String, Integer>>();
+        var connections = new ArrayList<String>();
 
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("-tcpport")) {
-                tcpPort = Integer.parseInt(args[i + 1]);
+                tcpPort = Integer.parseInt(args[++i]);
             } else if (args[i].equals("-record")) {
-                String[] split = args[i + 1].split(":");
+                String[] split = args[++i].split(":");
                 record = new SimpleEntry<>(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
             } else if (args[i].equals("-connect")) {
-                String[] split = args[i + 1].split(":");
-                connections.add(new SimpleEntry<>(split[0], Integer.parseInt(split[1])));
+                String[] split = args[++i].split(":");
+                connections.add(split[0] + ":" + Integer.parseInt(split[1]));
             }
         }
 

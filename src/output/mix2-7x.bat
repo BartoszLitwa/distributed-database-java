@@ -16,8 +16,10 @@ timeout 1 > NUL
 
 start java DatabaseClient -gateway localhost:9001 -operation get-max
 start java DatabaseClient -gateway localhost:9002 -operation get-min
+timeout 1 > NUL
 start java DatabaseClient -gateway localhost:9003 -operation find-key 7
 start java DatabaseClient -gateway localhost:9004 -operation find-key 1
+timeout 1 > NUL
 start java DatabaseClient -gateway localhost:9005 -operation set-value 4:4
 start java DatabaseClient -gateway localhost:9006 -operation set-value 5:5
 timeout 10 > NUL

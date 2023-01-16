@@ -1,12 +1,10 @@
 import tcp.TCPClient;
 
-import java.util.AbstractMap.SimpleEntry;
-
 public class ClientData {
-    private SimpleEntry<String, Integer> record;
+    private String record;
     private TCPClient client;
 
-    public ClientData(SimpleEntry<String, Integer> record){
+    public ClientData(String record){
         this.record = record;
     }
 

@@ -14,20 +14,20 @@ timeout 1 > NUL
 start java DatabaseNode -tcpport 9006 -connect localhost:9002 -connect localhost:9005 -connect localhost:9003 -record 7:1
 timeout 1 > NUL
 
-java DatabaseClient -gateway localhost:9003 -operation get-max
-java DatabaseClient -gateway localhost:9004 -operation get-min
+java DatabaseClient -gateway localhost:9006 -operation get-max
+java DatabaseClient -gateway localhost:9006 -operation get-min
 timeout 1 > NUL
-java DatabaseClient -gateway localhost:9004 -operation find-key 7
-java DatabaseClient -gateway localhost:9003 -operation find-key 1
+java DatabaseClient -gateway localhost:9006 -operation find-key 7
+java DatabaseClient -gateway localhost:9006 -operation find-key 1
 timeout 1 > NUL
-java DatabaseClient -gateway localhost:9003 -operation set-value 7:7
-java DatabaseClient -gateway localhost:9004 -operation set-value 1:1
+java DatabaseClient -gateway localhost:9006 -operation set-value 7:7
+java DatabaseClient -gateway localhost:9006 -operation set-value 1:1
 timeout 1 > NUL
-java DatabaseClient -gateway localhost:9004 -operation get-max
-java DatabaseClient -gateway localhost:9003 -operation get-max
+java DatabaseClient -gateway localhost:9006 -operation get-max
+java DatabaseClient -gateway localhost:9006 -operation get-max
 timeout 1 > NUL
-java DatabaseClient -gateway localhost:9003 -operation find-key 7
-java DatabaseClient -gateway localhost:9004 -operation find-key 1
+java DatabaseClient -gateway localhost:9006 -operation find-key 7
+java DatabaseClient -gateway localhost:9006 -operation find-key 1
 timeout 1 > NUL
 
 java DatabaseClient -gateway localhost:9000 -operation terminate

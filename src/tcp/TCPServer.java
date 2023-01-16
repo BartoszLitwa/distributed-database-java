@@ -14,13 +14,16 @@ import java.util.function.BiConsumer;
 public class TCPServer {
     private int port = -1;
     private boolean alive = false;
+    private String address = null;
 
     private ServerSocket serverSocket;
     private List<Thread> threadList;
+    private List<String> nodesConnected;
 
     public TCPServer(int port) {
         this.port = port;
         threadList = new ArrayList<>();
+        nodesConnected = new ArrayList<>();
     }
 
     public void startServer() {
@@ -30,6 +33,7 @@ public class TCPServer {
             }
             serverSocket = new ServerSocket(port);
             System.out.println("wainting for clients...");
+            address = serverSocket.getInetAddress().getHostAddress() + ":" + serverSocket.getLocalPort();
 
             alive = true;
         } catch (Exception e) {
@@ -37,7 +41,7 @@ public class TCPServer {
         }
     }
 
-    public void listen(BiConsumer<BufferedReader, PrintWriter> operation) {
+    public void listen(BiConsumer<String, PrintWriter> operation) {
         int index = 0;
         while(alive){ // Wait for new clients
             try {
@@ -45,23 +49,36 @@ public class TCPServer {
                 System.out.println("Client(" + index++ + ") connected: " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
 
                 var thread = new Thread(() -> {
+                    BufferedReader input = null;
+                    PrintWriter out = null;
                     try {
-                        var input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        var out = new PrintWriter(socket.getOutputStream(), true);
+                        input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        out = new PrintWriter(socket.getOutputStream(), true);
 
-                        operation.accept(input, out);
+                        var message = input.readLine();
+                        var address = socket.getInetAddress().getHostAddress() + ":" + socket.getPort();
+                        if(message.startsWith("NODE-") && !nodesConnected.contains(address)){
+                            nodesConnected.add(address);
+                            System.out.println("Added to Node connected: " + address);
+                        }
 
-                        System.out.println("Client stopped: " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
-                        input.close();
-                        out.close();
-                        socket.close();
+                        operation.accept(message, out);
                     } catch (IOException e) {
                         e.printStackTrace();
+                    }
+                    finally {
+                        try {
+                            if(input != null) input.close();
+                            if(out != null) out.close();
+                            if(socket != null) socket.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
                 });
                 thread.start();
             } catch (SocketException se){
-                System.out.println("Server stopped");
+                System.out.println("Socked Exception - Server stopped");
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -73,12 +90,9 @@ public class TCPServer {
             alive = false;
             serverSocket.close();
 
-            System.out.println("Stopping threads...");
             for (Thread thread : threadList) {
                 thread.interrupt();
             }
-
-            System.out.println("Client stopped");
         } catch (Exception e) {
             System.out.println(e);
         }
@@ -89,10 +103,19 @@ public class TCPServer {
     }
 
     public String getHostAddress(){
-        return serverSocket.getInetAddress().getHostAddress();
+        return serverSocket.getInetAddress().getHostAddress().contains("0.0.0.0") ?
+                "localhost" : serverSocket.getInetAddress().getHostAddress();
     }
 
     public int getPort(){
-        return port;
+        return serverSocket.getLocalPort();
+    }
+
+    public List<String> getNodesConnected(){
+        return nodesConnected;
+    }
+
+    public void removeConnection(String address){
+        nodesConnected.remove(address);
     }
 }

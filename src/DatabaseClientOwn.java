@@ -1,6 +1,3 @@
-import java.util.AbstractMap;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
 import java.util.MissingFormatArgumentException;
 
 public class DatabaseClientOwn {
@@ -9,14 +6,13 @@ public class DatabaseClientOwn {
     }
 
     private static ClientData setupClient(String[] args) {
-        SimpleEntry<String, Integer> record = null;
+        String record = null;
         String operation = null;
         String parameter = null;
 
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("-gateway")) {
-                var split = args[i + 1].split(":");
-                record = new SimpleEntry<>(split[0], Integer.parseInt(split[1]));
+                record = args[i + 1];
             } else if (args[i].equals("-operation")) {
                 parameter = i + 1 < args.length ? args[i + 1] : null;
             }
