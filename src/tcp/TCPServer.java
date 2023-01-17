@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -14,7 +15,6 @@ import java.util.function.BiConsumer;
 public class TCPServer {
     private int port = -1;
     private boolean alive = false;
-    private String address = null;
 
     private ServerSocket serverSocket;
     private List<Thread> threadList;
@@ -33,7 +33,6 @@ public class TCPServer {
             }
             serverSocket = new ServerSocket(port);
             System.out.println("wainting for clients...");
-            address = serverSocket.getInetAddress().getHostAddress() + ":" + serverSocket.getLocalPort();
 
             alive = true;
         } catch (Exception e) {
@@ -41,7 +40,7 @@ public class TCPServer {
         }
     }
 
-    public void listen(BiConsumer<String, PrintWriter> operation) {
+    public void listen(BiConsumer<SimpleEntry<String, String>, PrintWriter> operation) {
         int index = 0;
         while(alive){ // Wait for new clients
             try {
@@ -51,18 +50,17 @@ public class TCPServer {
                 var thread = new Thread(() -> {
                     BufferedReader input = null;
                     PrintWriter out = null;
+                    String message = null;
                     try {
                         input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                         out = new PrintWriter(socket.getOutputStream(), true);
 
-                        var message = input.readLine();
-                        var address = socket.getInetAddress().getHostAddress() + ":" + socket.getPort();
-                        if(message.startsWith("NODE-") && !nodesConnected.contains(address)){
-                            nodesConnected.add(address);
-                            System.out.println("Added to Node connected: " + address);
-                        }
+                        message = input.readLine();
+                        var clientAddress = message.contains("-NODE-") ? message.substring(0, message.indexOf("-NODE-")) : "";
+                        System.out.println("Message from client(" + clientAddress + "): " + message);
 
-                        operation.accept(message, out);
+                        operation.accept(new SimpleEntry<>(message, clientAddress), out);
+                        System.out.println("\n\n");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -71,6 +69,11 @@ public class TCPServer {
                             if(input != null) input.close();
                             if(out != null) out.close();
                             if(socket != null) socket.close();
+
+                            // Only exit if the message is terminade from client
+                            if(!message.contains("-NODE-") && message.contains("terminate") && !message.contains("terminateNode")) {
+                                System.exit(0);
+                            }
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -111,11 +114,21 @@ public class TCPServer {
         return serverSocket.getLocalPort();
     }
 
+    public String getAddressPort(){
+        return getHostAddress() + ":" + getPort();
+    }
+
     public List<String> getNodesConnected(){
         return nodesConnected;
     }
 
     public void removeConnection(String address){
         nodesConnected.remove(address);
+    }
+
+    public void addConnection(String address){
+        if(!nodesConnected.contains(address)){
+            nodesConnected.add(address);
+        }
     }
 }

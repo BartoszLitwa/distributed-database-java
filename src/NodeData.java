@@ -23,50 +23,56 @@ public class NodeData {
 
     public void startNode() {
         startNodeServer();
-        startNodeClients();
     }
 
     public void stopNode() {
-        stopNodeServer();
         stopNodeClients();
+        stopNodeServer();
     }
 
-    private void handleRequestMessages(PrintWriter writer, String message){
-        var split = message.split(" ");
-        if(split[0].startsWith("NODE-")){
-            split[0] = split[0].substring(5);
+    private void handleRequestMessages(PrintWriter writer, SimpleEntry<String, String> data){
+        var split = data.getKey().split(" ");
+        var clientAddress = data.getValue();
+
+        if(split[0].contains("-NODE-")){ // Node connection
+            split[0] = split[0].substring(split[0].indexOf("-NODE-") + 6);
+        } else { // Only when received from client
+            clientAddress = "Received From Client";
         }
 
         var command = split[0];
-        switch (command){
+        switch (command.trim()){
             case "set-value":
-                setValueNode(writer, split[1]);
+                setValueNode(writer, split[1], clientAddress);
                 break;
             case "get-value":
-                getValueNode(writer, split[1]);
+                getValueNode(writer, split[1], clientAddress);
                 break;
             case "find-key":
-                findKeyNode(writer, split[1]);
+                findKeyNode(writer, split[1], clientAddress);
                 break;
             case "get-max":
-                getMaxNode(writer);
+                getMaxNode(writer, clientAddress);
                 break;
             case "get-min":
-                getMinNode(writer);
+                getMinNode(writer, clientAddress);
                 break;
             case "new-record":
-                newRecordNode(writer, split[1]);
+                newRecordNode(writer, split[1], clientAddress);
                 break;
-            case "terminate":
-                terminateNode(writer, "");
+            case "terminate": // Received from client
+                terminateNode(writer, "", clientAddress);
                 break;
-            case "terminateNode":
-                terminateNode(writer, split[1]);
+            case "terminateNode": // Received from other node
+                terminateNode(writer, split[1], clientAddress);
+                break;
+            case "connectedNewNode":
+                connectedNewNode(writer, clientAddress);
                 break;
         }
     }
 
-    private void setValueNode(PrintWriter writer, String parameter){
+    private void setValueNode(PrintWriter writer, String parameter, String clientAddress){
         var split = parameter.split(":");
         var newRecord = new SimpleEntry<Integer, Integer>(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
         boolean success = false;
@@ -75,23 +81,20 @@ public class NodeData {
             success = true;
         }
 
-        var responses = sendRequestMessage("NODE-set-value " + parameter);
+        var responses = sendRequestMessage("set-value " + parameter, clientAddress);
         for (var res : responses) {
             if(res.equals("OK")){
-                writer.println("OK");
-                writer.flush();
                 success = true;
-                break;
             }
         }
         writer.println(success ? "OK" : "ERROR");
         writer.flush();
     }
 
-    private void getValueNode(PrintWriter writer, String parameter){
-        var result = record.getKey() == Integer.parseInt(parameter) ? record.getKey() + ":" + record.getValue() : "ERROR";
+    private void getValueNode(PrintWriter writer, String parameter, String clientAddress){
+        var result = record.getValue() == Integer.parseInt(parameter) ? record.getKey() + ":" + record.getValue() : "ERROR";
         if(result.equals("ERROR")){
-            var responses = sendRequestMessage("NODE-get-value " + parameter);
+            var responses = sendRequestMessage("get-value " + parameter, clientAddress);
             for (var response : responses) {
                 if(!response.equals("ERROR")){
                     result = response;
@@ -105,10 +108,10 @@ public class NodeData {
         writer.flush();
     }
 
-    private void findKeyNode(PrintWriter writer, String parameter){
-        var result = record.getKey() == Integer.parseInt(parameter) ? tcpServer.getHostAddress() + ":" + tcpServer.getPort() : "ERROR";
+    private void findKeyNode(PrintWriter writer, String parameter, String clientAddress){
+        var result = record.getKey() == Integer.parseInt(parameter) ? tcpServer.getAddressPort() : "ERROR";
         if(result.equals("ERROR")){
-            var responses = sendRequestMessage("NODE-find-key " + parameter);
+            var responses = sendRequestMessage("find-key " + parameter, clientAddress);
             for (var response : responses) {
                 if(!response.equals("ERROR")){
                     result = response;
@@ -121,8 +124,8 @@ public class NodeData {
         writer.flush();
     }
 
-    private void getMaxNode(PrintWriter writer){
-        var responses = sendRequestMessage("NODE-get-max");
+    private void getMaxNode(PrintWriter writer, String clientAddress){
+        var responses = sendRequestMessage("get-max", clientAddress);
         var max = record.getValue();
         var recordMax = record;
         for (var response : responses) {
@@ -138,8 +141,8 @@ public class NodeData {
         writer.flush();
     }
 
-    private void getMinNode(PrintWriter writer){
-        var responses = sendRequestMessage("NODE-get-min");
+    private void getMinNode(PrintWriter writer, String clientAddress){
+        var responses = sendRequestMessage("get-min", clientAddress);
         var min = record.getValue();
         var recordMin = record;
         for (var response : responses) {
@@ -155,17 +158,18 @@ public class NodeData {
         writer.flush();
     }
 
-    private void newRecordNode(PrintWriter writer, String parameter){
+    private void newRecordNode(PrintWriter writer, String parameter, String clientAdress){
         var split = parameter.split(":");
         record = new SimpleEntry<>(Integer.parseInt(split[0]), Integer.parseInt(split[1]));
+        System.out.println("New record: " + parameter);
         writer.println("OK");
         writer.flush();
     }
 
-    private void terminateNode(PrintWriter writer, String parameter){
+    private void terminateNode(PrintWriter writer, String parameter, String clientAddress){
         if(parameter.equals("")) { // We want to terminate this node
             System.out.println("Sending terminate message to all neighbour nodes");
-            var responses = sendRequestMessage("NODE-terminateNode " + tcpServer.getHostAddress() + ":" + tcpServer.getPort());
+            var responses = sendRequestMessage("terminateNode " + tcpServer.getAddressPort(), clientAddress);
             for (var response : responses) {
                 if (!response.equals("OK")) {
                     writer.println("ERROR");
@@ -173,9 +177,12 @@ public class NodeData {
                     return;
                 }
             }
-            stopNode();
-            System.out.println("---Terminated node: " + tcpServer.getHostAddress() + ":" + tcpServer.getPort() + "---");
 
+            writer.println("OK");
+            writer.flush();
+
+            System.out.println("---Terminated node: " + tcpServer.getAddressPort() + "---");
+            stopNode(); // Calls System.exit(0)
         } else { // We have been informed that another node is going to terminate
             System.out.println("Received terminate message from " + parameter);
             var client = clientsThreads.get(parameter);
@@ -184,15 +191,22 @@ public class NodeData {
                 client.getValue().stopClient();
                 client.getKey().interrupt();
                 clientsThreads.remove(parameter);
-                if(connections.contains(parameter)){
-                    connections.remove(parameter);
-                } else {
-                    tcpServer.removeConnection(parameter);
-                }
             }
+            // Remove the connection from the list
+            if(connections.contains(parameter)){
+                connections.remove(parameter);
+            } else {
+                tcpServer.removeConnection(parameter);
+            }
+
+            writer.println("OK");
+            writer.flush();
         }
-        writer.println("OK");
-        writer.flush();
+    }
+
+    private void connectedNewNode(PrintWriter writer, String clientAddress) {
+        System.out.println("Received connectedNewNode message from " + clientAddress);
+        tcpServer.addConnection(clientAddress);
     }
 
     private void startNodeServer() {
@@ -200,11 +214,13 @@ public class NodeData {
         tcpServer.startServer();
         System.out.println("Server started: " + tcpServer.getHostAddress() + ":" + tcpServer.getPort());
 
+        startNodeClients();
+
         // Until it is alive keep listening for new connections
-        tcpServer.listen((message, writer) -> {
+        tcpServer.listen((data, writer) -> {
             try {
-                System.out.println("Received message: " + message);
-                handleRequestMessages(writer, message);
+                System.out.println("Received message: " + data.getKey());
+                handleRequestMessages(writer, data);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -216,15 +232,8 @@ public class NodeData {
     }
 
     private void startNodeClients() {
-        for (var connection : connections) {
-            var client = new TCPClient(connection);
-            var thread = new Thread(() -> {
-                client.startClient();
-            });
-            // Add it to our threads map
-            clientsThreads.put(connection, new SimpleEntry<>(thread, client));
-            thread.start();
-        }
+        System.out.println("Informing neighbours about new node");
+        sendRequestMessage("connectedNewNode", tcpServer.getAddressPort());
     }
 
     private void stopNodeClients(){
@@ -239,12 +248,40 @@ public class NodeData {
         }
     }
 
-    private List<String> sendRequestMessage(String message){
+    private List<String> sendRequestMessage(String message, String clientAddress){
         var responses = new ArrayList<String>();
         var merged = new HashSet<String>(connections);
         merged.addAll(tcpServer.getNodesConnected());
+        merged.add(tcpServer.getAddressPort());
+
+        var clientsVisited = clientAddress.split("\\|");
+        for (var client : clientsVisited) {
+            if(merged.contains(client)){
+                merged.remove(client);
+            }
+            merged.add(client);
+        }
+        merged.remove("Received From Client");
+
+        var stringBuilder = new StringBuilder();
         for (var connection : merged) {
-            System.out.println("Sending message to " + connection);
+            stringBuilder.append(connection + "|");
+        }
+        stringBuilder.deleteCharAt(stringBuilder.length() - 1); // Remove last |
+
+        if(message.contains("connectedNewNode")){
+            message = tcpServer.getAddressPort() + "-NODE-" + message;
+        } else {
+            message = stringBuilder.toString() + "-NODE-" + message;
+        }
+
+        for(var sentToAlready : clientsVisited){
+            merged.remove(sentToAlready);
+        }
+
+        merged.remove(tcpServer.getAddressPort());
+        System.out.println("Sending message: " + message + " to " + merged);
+        for (var connection : merged) {
             var TcpClient = new TCPClient(connection);
             if(!TcpClient.startClient()){ // Could not connect to the client
                 continue;
